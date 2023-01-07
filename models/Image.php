@@ -260,7 +260,7 @@ class Image extends ActiveRecord
                     }
                 }
 
-                $image->save($pathToSave, $this->getModule()->imageCompressionQuality );
+                $image->toFile($pathToSave, null, $this->getModule()->imageCompressionQuality );
             }
 
         return $image;
