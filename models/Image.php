@@ -14,24 +14,46 @@
 
 namespace rico\yii2images\models;
 
+use abeautifulsite\SimpleImage;
+use Imagick;
+use ImagickException;
 use Yii;
+use yii\base\ErrorException;
 use yii\base\Exception;
+use yii\db\ActiveRecord;
+use yii\helpers\Inflector;
 use yii\helpers\Url;
 use yii\helpers\BaseFileHelper;
-use \rico\yii2images\ModuleTrait;
+use rico\yii2images\ModuleTrait;
 
 
-
-class Image extends \yii\db\ActiveRecord
+/**
+ * Image
+ * \rico\yii2images\models\Image
+ *
+ * @property string urlAlias
+ * @property int itemId
+ * @property string filePath
+ * @property string modelName
+ * @property string name
+ */
+class Image extends ActiveRecord
 {
     use ModuleTrait;
 
 
-    private $helper = false;
+	/**
+	 * @var bool
+	 */
+	private $helper = false;
 
 
-
-    public function clearCache(){
+	/**
+	 * @return bool
+	 * @throws Exception
+	 * @throws ErrorException
+	 */
+	public function clearCache(){
         $subDir = $this->getSubDur();
 
         $dirToRemove = $this->getModule()->getCachePath().DIRECTORY_SEPARATOR.$subDir;
@@ -44,12 +66,19 @@ class Image extends \yii\db\ActiveRecord
         return true;
     }
 
-    public function getExtension(){
+	/**
+	 * @return array|string|string[]
+	 */
+	public function getExtension(){
         $ext = pathinfo($this->getPathToOrigin(), PATHINFO_EXTENSION);
         return $ext;
     }
 
-    public function getUrl($size = false){
+	/**
+	 * @param $size
+	 * @return string
+	 */
+	public function getUrl($size = false){
         $urlSize = ($size) ? '_'.$size : '';
         $url = Url::toRoute([
             '/'.$this->getPrimaryKey().'/images/image-by-item-and-alias',
@@ -60,7 +89,12 @@ class Image extends \yii\db\ActiveRecord
         return $url;
     }
 
-    public function getPath($size = false){
+	/**
+	 * @param $size
+	 * @return string
+	 * @throws Exception
+	 */
+	public function getPath($size = false){
         $urlSize = ($size) ? '_'.$size : '';
         $base = $this->getModule()->getCachePath();
         $sub = $this->getSubDur();
@@ -68,8 +102,8 @@ class Image extends \yii\db\ActiveRecord
         $origin = $this->getPathToOrigin();
 
         $filePath = $base.DIRECTORY_SEPARATOR.
-            $sub.DIRECTORY_SEPARATOR.$this->urlAlias.$urlSize.'.'.pathinfo($origin, PATHINFO_EXTENSION);;
-        if(!file_exists($filePath)){
+            $sub.DIRECTORY_SEPARATOR.$this->urlAlias.$urlSize.'.'.pathinfo($origin, PATHINFO_EXTENSION);
+		if(!file_exists($filePath)){
             $this->createVersion($origin, $size);
 
             if(!file_exists($filePath)){
@@ -80,11 +114,20 @@ class Image extends \yii\db\ActiveRecord
         return $filePath;
     }
 
-    public function getContent($size = false){
+	/**
+	 * @param $size
+	 * @return false|string
+	 * @throws Exception
+	 */
+	public function getContent($size = false){
         return file_get_contents($this->getPath($size));
     }
 
-    public function getPathToOrigin(){
+	/**
+	 * @return string
+	 * @throws Exception
+	 */
+	public function getPathToOrigin(){
 
         $base = $this->getModule()->getStorePath();
 
@@ -94,14 +137,19 @@ class Image extends \yii\db\ActiveRecord
     }
 
 
-    public function getSizes()
+	/**
+	 * @return false|int[]
+	 * @throws Exception
+	 * @throws ImagickException
+	 */
+	public function getSizes()
     {
         $sizes = false;
         if($this->getModule()->graphicsLibrary == 'Imagick'){
-            $image = new \Imagick($this->getPathToOrigin());
+            $image = new Imagick($this->getPathToOrigin());
             $sizes = $image->getImageGeometry();
         }else{
-            $image = new \abeautifulsite\SimpleImage($this->getPathToOrigin());
+            $image = new SimpleImage($this->getPathToOrigin());
             $sizes['width'] = $image->get_width();
             $sizes['height'] = $image->get_height();
         }
@@ -109,7 +157,13 @@ class Image extends \yii\db\ActiveRecord
         return $sizes;
     }
 
-    public function getSizesWhen($sizeString){
+	/**
+	 * @param $sizeString
+	 * @return array
+	 * @throws Exception
+	 * @throws ImagickException
+	 */
+	public function getSizesWhen($sizeString){
 
         $size = $this->getModule()->parseSize($sizeString);
         if(!$size){
@@ -136,7 +190,14 @@ class Image extends \yii\db\ActiveRecord
         return $newSizes;
     }
 
-    public function createVersion($imagePath, $sizeString = false)
+	/**
+	 * @param $imagePath
+	 * @param $sizeString
+	 * @return SimpleImage|Imagick
+	 * @throws Exception
+	 * @throws ImagickException
+	 */
+	public function createVersion($imagePath, $sizeString = false)
     {
         if(strlen($this->urlAlias)<1){
             throw new \Exception('Image without urlAlias!');
@@ -164,7 +225,7 @@ class Image extends \yii\db\ActiveRecord
         }
 
             if($this->getModule()->graphicsLibrary == 'Imagick'){
-                $image = new \Imagick($imagePath);
+                $image = new Imagick($imagePath);
 
                 $image->setImageCompressionQuality( $this->getModule()->imageCompressionQuality );
 
@@ -183,7 +244,7 @@ class Image extends \yii\db\ActiveRecord
                 $image->writeImage($pathToSave);
             }else{
 
-                $image = new \abeautifulsite\SimpleImage($imagePath);
+                $image = new SimpleImage($imagePath);
 
                 if($size){
                     if($size['height'] && $size['width']){
@@ -210,7 +271,7 @@ class Image extends \yii\db\ActiveRecord
 
                     $waterMarkPath = Yii::getAlias($this->getModule()->waterMark);
 
-                    $waterMark = new \abeautifulsite\SimpleImage($waterMarkPath);
+                    $waterMark = new SimpleImage($waterMarkPath);
 
 
                     if(
@@ -247,7 +308,11 @@ class Image extends \yii\db\ActiveRecord
     }
 
 
-    public function setMain($isMain = true){
+	/**
+	 * @param $isMain
+	 * @return void
+	 */
+	public function setMain($isMain = true){
         if($isMain){
             $this->isMain = 1;
         }else{
@@ -257,13 +322,21 @@ class Image extends \yii\db\ActiveRecord
     }
 
 
-    public function getMimeType($size = false) {
+	/**
+	 * @param $size
+	 * @return string
+	 * @throws Exception
+	 */
+	public function getMimeType($size = false) {
         return image_type_to_mime_type ( exif_imagetype( $this->getPath($size) ) );
     }
 
 
-    protected function getSubDur(){
-        return \yii\helpers\Inflector::pluralize($this->modelName).'/'.$this->modelName.$this->itemId;
+	/**
+	 * @return string
+	 */
+	protected function getSubDur(){
+        return Inflector::pluralize($this->modelName).'/'.$this->modelName.$this->itemId;
     }
 
 

@@ -17,32 +17,42 @@ use rico\yii2images\models;
 use yii\helpers\BaseFileHelper;
 use \rico\yii2images\ModuleTrait;
 
+/**
+ * ImageBehave
+ * \rico\yii2images\behaviors\ImageBehave
+ */
 class ImageBehave extends Behavior
 {
     use ModuleTrait;
-    public $createAliasMethod = false;
+
+	/**
+	 * @var bool
+	 */
+	public $createAliasMethod = false;
 
     /**
      * @var ActiveRecord|null Model class, which will be used for storing image data in db, if not set default class(models/Image) will be used
      */
 
-    /**
-     *
-     * Method copies image file to module store and creates db record.
-     *
-     * @param $absolutePath
-     * @param bool $isMain
-     * @return bool|Image
-     * @throws \Exception
-     */
-    public function attachImage($absolutePath, $isMain = false, $name = '')
+	/**
+	 *
+	 * Method copies image file to module store and creates db record.
+	 *
+	 * @param $absolutePath
+	 * @param bool $isMain
+	 * @param string $name
+	 * @return bool|Image
+	 * @throws yii\base\Exception
+	 * @throws \Exception
+	 */
+    public function attachImage(
+		$absolutePath,
+		bool $isMain = false,
+		string $name = ''
+	)
     {
-        if(!preg_match('#http#', $absolutePath)){
-            if (!file_exists($absolutePath)) {
-                throw new \Exception('File not exist! :'.$absolutePath);
-            }
-        }else{
-            //nothing
+        if(!preg_match('#http#', $absolutePath) && !file_exists($absolutePath)){
+			throw new \Exception('File not exist! :'.$absolutePath);
         }
 
         if (!$this->owner->primaryKey) {
@@ -79,16 +89,15 @@ class ImageBehave extends Behavior
         $image->filePath = $pictureSubDir . '/' . $pictureFileName;
         $image->modelName = $this->getModule()->getShortClass($this->owner);
         $image->name = $name;
-
-        $image->urlAlias = $this->getAlias($image);
+        $image->urlAlias = $this->getAlias();
 
         if(!$image->save()){
             return false;
         }
 
         if (count($image->getErrors()) > 0) {
-
-            $ar = array_shift($image->getErrors());
+			$errors = $image->getErrors();
+            $ar = array_shift($errors);
 
             unlink($newAbsolutePath);
             throw new \Exception(array_shift($ar));
@@ -126,10 +135,8 @@ class ImageBehave extends Behavior
         $img->urlAlias = $this->getAliasString() . '-' . $counter;
         $img->save();
 
-
         $images = $this->owner->getImages();
         foreach ($images as $allImg) {
-
             if ($allImg->getPrimaryKey() == $img->getPrimaryKey()) {
                 continue;
             } else {
@@ -144,104 +151,104 @@ class ImageBehave extends Behavior
         $this->owner->clearImagesCache();
     }
 
-    /**
-     * Clear all images cache (and resized copies)
-     * @return bool
-     */
-    public function clearImagesCache()
-    {
+	/**
+	 * Clear all images cache (and resized copies)
+	 * @return bool
+	 * @throws yii\base\ErrorException
+	 * @throws yii\base\Exception
+	 */
+    public function clearImagesCache(): bool
+	{
         $cachePath = $this->getModule()->getCachePath();
-        $subdir = $this->getModule()->getModelSubDir($this->owner);
-
-        $dirToRemove = $cachePath . '/' . $subdir;
+        $subDirectory = $this->getModule()->getModelSubDir($this->owner);
+        $dirToRemove = "{$cachePath}/{$subDirectory}";
 
         if (preg_match('/' . preg_quote($cachePath, '/') . '/', $dirToRemove)) {
             BaseFileHelper::removeDirectory($dirToRemove);
-            //exec('rm -rf ' . $dirToRemove);
             return true;
-        } else {
-            return false;
         }
+
+		return false;
     }
 
-    /**
-     * Returns model images
-     * First image alwats must be main image
-     * @return array|yii\db\ActiveRecord[]
-     */
-    public function getImages()
-    {
-        $finder = $this->getImagesFinder();
+	/**
+	 * @return yii\db\ActiveQuery
+	 * @throws yii\base\Exception
+	 */
+	protected function getInstance(): yii\db\ActiveQuery
+	{
+		$className = $this->getModule()->className;
+		if ($className) {
+			return $className::find();
+		}
 
-        if ($this->getModule()->className === null) {
-            $imageQuery = Image::find();
-        } else {
-            $class = $this->getModule()->className;
-            $imageQuery = $class::find();
-        }
-        $imageQuery->where($finder);
-        $imageQuery->orderBy(['isMain' => SORT_DESC, 'id' => SORT_ASC]);
+		return Image::find();
+	}
 
-        $imageRecords = $imageQuery->all();
+	/**
+	 * Returns model images
+	 * First image always must be main image
+	 * @return array|yii\db\ActiveRecord[]
+	 * @throws yii\base\Exception
+	 */
+    public function getImages(): array
+	{
+        $imageRecords = $this->getInstance()
+			->where($this->getImagesFinder())
+			->orderBy(['isMain' => SORT_DESC, 'id' => SORT_ASC])
+			->all();
+
         if(!$imageRecords && $this->getModule()->placeHolderPath){
             return [$this->getModule()->getPlaceHolder()];
         }
         return $imageRecords;
     }
 
-    /**
-     * returns main model image
-     * @return array|null|ActiveRecord
-     */
+	/**
+	 * returns main model image
+	 * @return array|null|ActiveRecord
+	 * @throws yii\base\Exception
+	 */
     public function getImage()
     {
-        if ($this->getModule()->className === null) {
-            $imageQuery = Image::find();
-        } else {
-            $class = $this->getModule()->className;
-            $imageQuery = $class::find();
-        }
-        $finder = $this->getImagesFinder(['isMain' => 1]);
-        $imageQuery->where($finder);
-        $imageQuery->orderBy(['isMain' => SORT_DESC, 'id' => SORT_ASC]);
+        $image = $this->getInstance()
+			->where($this->getImagesFinder(['isMain' => 1]))
+			->orderBy(['isMain' => SORT_DESC, 'id' => SORT_ASC])
+			->one();
 
-        $img = $imageQuery->one();
-        if(!$img){
+        if(!$image){
             return $this->getModule()->getPlaceHolder();
         }
 
-        return $img;
+        return $image;
     }
 
-    /**
-     * returns model image by name
-     * @return array|null|ActiveRecord
-     */
+	/**
+	 * returns model image by name
+	 * @return array|null|ActiveRecord
+	 * @throws yii\base\Exception
+	 */
     public function getImageByName($name)
     {
-        if ($this->getModule()->className === null) {
-            $imageQuery = Image::find();
-        } else {
-            $class = $this->getModule()->className;
-            $imageQuery = $class::find();
-        }
-        $finder = $this->getImagesFinder(['name' => $name]);
-        $imageQuery->where($finder);
-        $imageQuery->orderBy(['isMain' => SORT_DESC, 'id' => SORT_ASC]);
+        $image = $this->getInstance()
+			->where($this->getImagesFinder(['name' => $name]))
+			->orderBy(['isMain' => SORT_DESC, 'id' => SORT_ASC])
+			->one();
 
-        $img = $imageQuery->one();
-        if(!$img){
+        if(!$image){
             return $this->getModule()->getPlaceHolder();
         }
 
-        return $img;
+        return $image;
     }
 
-    /**
-     * Remove all model images
-     */
-    public function removeImages()
-    {
+	/**
+	 * Remove all model images
+	 * @throws yii\base\ErrorException
+	 * @throws yii\base\Exception
+	 */
+    public function removeImages(): bool
+	{
         $images = $this->owner->getImages();
         if (count($images) < 1) {
             return true;
@@ -249,19 +256,20 @@ class ImageBehave extends Behavior
             foreach ($images as $image) {
                 $this->owner->removeImage($image);
             }
-            $storePath = $this->getModule()->getStorePath($this->owner);
+            $storePath = $this->getModule()->getStorePath();
             $pictureSubDir = $this->getModule()->getModelSubDir($this->owner);
             $dirToRemove = $storePath . DIRECTORY_SEPARATOR . $pictureSubDir;
             BaseFileHelper::removeDirectory($dirToRemove);
         }
 
+		return false;
     }
 
     /**
      * removes concrete model's image
      * @param Image $img
-     * @throws \Exception
      * @return bool
+	 * @throws \Exception|\Throwable
      */
     public function removeImage(Image $img)
     {
@@ -280,7 +288,12 @@ class ImageBehave extends Behavior
         return true;
     }
 
-    private function getImagesFinder($additionWhere = false)
+	/**
+	 * @param $additionWhere
+	 * @return array
+	 * @throws yii\base\Exception
+	 */
+	private function getImagesFinder($additionWhere = false)
     {
         $base = [
             'itemId' => $this->owner->primaryKey,
