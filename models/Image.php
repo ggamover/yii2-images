@@ -14,7 +14,6 @@
 
 namespace rico\yii2images\models;
 
-use abeautifulsite\SimpleImage;
 use Imagick;
 use ImagickException;
 use Yii;
@@ -25,6 +24,8 @@ use yii\helpers\Inflector;
 use yii\helpers\Url;
 use yii\helpers\BaseFileHelper;
 use rico\yii2images\ModuleTrait;
+
+use claviska\SimpleImage;
 
 
 /**
