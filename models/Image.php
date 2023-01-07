@@ -260,47 +260,6 @@ class Image extends ActiveRecord
                     }
                 }
 
-                //WaterMark
-                if($this->getModule()->waterMark){
-
-                    if(!file_exists(Yii::getAlias($this->getModule()->waterMark))){
-                        throw new Exception('WaterMark not detected!');
-                    }
-
-                    $wmMaxWidth = intval($image->get_width()*0.4);
-                    $wmMaxHeight = intval($image->get_height()*0.4);
-
-                    $waterMarkPath = Yii::getAlias($this->getModule()->waterMark);
-
-                    $waterMark = new SimpleImage($waterMarkPath);
-
-
-                    if(
-                        $waterMark->get_height() > $wmMaxHeight
-                        or
-                        $waterMark->get_width() > $wmMaxWidth
-                    ){
-
-                        $waterMarkPath = $this->getModule()->getCachePath().DIRECTORY_SEPARATOR.
-                            pathinfo($this->getModule()->waterMark)['filename'].
-                            $wmMaxWidth.'x'.$wmMaxHeight.'.'.
-                            pathinfo($this->getModule()->waterMark)['extension'];
-
-                        //throw new Exception($waterMarkPath);
-                        if(!file_exists($waterMarkPath)){
-                            $waterMark->fit_to_width($wmMaxWidth);
-                            $waterMark->save($waterMarkPath, 100);
-                            if(!file_exists($waterMarkPath)){
-                                throw new Exception('Cant save watermark to '.$waterMarkPath.'!!!');
-                            }
-                        }
-
-                    }
-
-                    $image->overlay($waterMarkPath, 'bottom right', .5, -10, -10);
-
-                }
-
                 $image->save($pathToSave, $this->getModule()->imageCompressionQuality );
             }
 
