@@ -19,7 +19,6 @@
     "require": {
         "yiisoft/yii2": "*",
         "abeautifulsite/simpleimage": "3.7.2",
-        "ext-imagick": "",
         "ext-exif": "*"
     },
     "require-dev": {
