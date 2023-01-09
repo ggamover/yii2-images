@@ -17,44 +17,67 @@ namespace rico\yii2images\models;
 
 use yii;
 
+/**
+ * PlaceHolder
+ * \rico\yii2images\models\PlaceHolder
+ */
 class PlaceHolder extends Image
 {
+	/**
+	 * @var string
+	 */
+	private $modelName = '';
+	/**
+	 * @var string
+	 */
+	private $itemId = '';
+	/**
+	 * @var string
+	 */
+	public $filePath = 'placeHolder.png';
+	/**
+	 * @var string
+	 */
+	public $urlAlias = 'placeHolder';
 
-    private $modelName = '';
-    private $itemId = '';
-    public $filePath = 'placeHolder.png';
-    public $urlAlias = 'placeHolder';
+	/**
+	 * @throws yii\base\Exception
+	 */
+	public function __construct()
+	{
+		$this->filePath = basename(Yii::getAlias($this->getModule()->placeHolderPath));
+	}
 
+	/**
+	 * @return string
+	 * @throws yii\base\Exception
+	 */
+	public function getPathToOrigin():string
+	{
+		$url = Yii::getAlias($this->getModule()->placeHolderPath);
+		if (!$url) {
+			throw new \Exception('PlaceHolder image must have path setting!');
+		}
+		return $url;
+	}
 
-    /*  public function getUrl($size = false){
-          $url = $this->getModule()->placeHolderUrl;
-          if(!$url){
-              throw new \Exception('PlaceHolder image must have url setting!!!');
-          }
-          return $url;
-      }*/
+	/**
+	 * @return string
+	 */
+	protected function getSubDur(): string
+	{
+		return $this->urlAlias;
+	}
 
-    public function __construct()
-    {
-        $this->filePath =basename(Yii::getAlias($this->getModule()->placeHolderPath)) ;
-    }
-
-    public function getPathToOrigin()
-    {
-
-        $url = Yii::getAlias($this->getModule()->placeHolderPath);
-        if (!$url) {
-            throw new \Exception('PlaceHolder image must have path setting!!!');
-        }
-        return $url;
-    }
-
-    protected  function getSubDur(){
-        return 'placeHolder';
-    }
-    public function setMain($isMain = true){
-        throw new yii\base\Exception('You must not set placeHolder as main image!!!');
-    }
+	/**
+	 * @param $isMain
+	 * @return void
+	 * @throws yii\base\Exception
+	 */
+	public function setMain($isMain = true)
+	{
+		throw new yii\base\Exception('You must not set placeHolder as main image!');
+	}
 
 }
 

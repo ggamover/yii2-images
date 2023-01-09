@@ -9,28 +9,30 @@
 namespace rico\yii2images;
 
 
+use Yii;
 use yii\base\Exception;
 
 trait ModuleTrait
 {
-    /**
-     * @var null|\rico\yii2images\Module
-     */
-    private $_module;
+	/**
+	 * @var null|Module
+	 */
+	private $_module;
 
-    /**
-     * @return null|\rico\yii2images\Module
-     */
-    protected function getModule()
-    {
-        if ($this->_module == null) {
-            $this->_module = \Yii::$app->getModule('yii2images');
-        }
+	/**
+	 * @return null|Module
+	 * @throws Exception
+	 */
+	protected function getModule()
+	{
+		if ($this->_module == null) {
+			$this->_module = Yii::$app->getModule('yii2images');
+		}
 
-        if(!$this->_module){
-            throw new Exception("\n\n\n\n\nYii2 images module not found, may be you didn't add it to your config?\n\n\n\n");
-        }
+		if(!$this->_module){
+			throw new Exception("Yii2 images module not found, may be you didn't add it to your config?");
+		}
 
-        return $this->_module;
-    }
+		return $this->_module;
+	}
 }

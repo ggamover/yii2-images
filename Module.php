@@ -2,190 +2,227 @@
 
 namespace rico\yii2images;
 
-
-use rico\yii2images\models\PlaceHolder;
+use Exception;
 use yii;
 use rico\yii2images\models\Image;
+use rico\yii2images\models\PlaceHolder;
+use yii\helpers\Inflector;
 
+/**
+ * Module
+ * \rico\yii2images\Module
+ */
 class Module extends \yii\base\Module
 {
-    public $imagesStorePath = '@app/web/store';
+	/**
+	 * @var string
+	 */
+	public $imagesStorePath = '@app/web/store';
 
-    public $imagesCachePath = '@app/web/imgCache';
+	/**
+	 * @var string
+	 */
+	public $imagesCachePath = '@app/web/imgCache';
 
-    public $graphicsLibrary = 'GD';
+	/**
+	 * @var string
+	 */
+	public $graphicsLibrary = 'GD';
 
-    public $controllerNamespace = 'rico\yii2images\controllers';
+	/**
+	 * @var string
+	 */
+	public $controllerNamespace = 'rico\yii2images\controllers';
 
-    public $placeHolderPath;
+	/**
+	 * @var
+	 */
+	public $placeHolderPath;
 
-    public $waterMark = false;
+	/**
+	 * @var bool
+	 */
+	public $waterMark = false;
 
-    public $className;
+	/**
+	 * @var
+	 */
+	public $className;
 
-    public $imageCompressionQuality = 85;
+	/**
+	 * @var int
+	 */
+	public $imageCompressionQuality = 100;
 
+	/**
+	 * @return void
+	 * @throws Exception
+	 */
+	public function init()
+	{
+		parent::init();
+		if (!$this->imagesStorePath
+			or
+			!$this->imagesCachePath
+			or
+			$this->imagesStorePath == '@app'
+			or
+			$this->imagesCachePath == '@app'
+		)
+			throw new Exception('Setup imagesStorePath and imagesCachePath images module properties!');
+	}
 
-    public function getImage($item, $dirtyAlias)
-    {
-        //Get params
-        $params = $data = $this->parseImageAlias($dirtyAlias);
+	/**
+	 * @param $item
+	 * @param $dirtyAlias
+	 * @return array|PlaceHolder|yii\db\ActiveRecord|null
+	 * @throws Exception
+	 */
+	public function getImage($item, $dirtyAlias)
+	{
+		$params = $data = $this->parseImageAlias($dirtyAlias);
+		$alias = $params['alias'];
 
-        $alias = $params['alias'];
-        $size = $params['size'];
+		$itemId = preg_replace('/[^0-9]+/', '', $item);
+		$modelName = preg_replace('/[0-9]+/', '', $item);
 
-        $itemId = preg_replace('/[^0-9]+/', '', $item);
-        $modelName = preg_replace('/[0-9]+/', '', $item);
+		if(empty($this->className)) {
+			$imageQuery = Image::find();
+		} else {
+			$class = $this->className;
+			$imageQuery = $class::find();
+		}
+		$image = $imageQuery
+			->where([
+				'modelName' => $modelName,
+				'itemId' => $itemId,
+				'urlAlias' => $alias
+			])
+			->one();
 
+		if(!$image){
+			return $this->getPlaceHolder();
+		}
 
-        //Lets get image
-        if(empty($this->className)) {
-            $imageQuery = Image::find();
-        } else {
-            $class = $this->className;
-            $imageQuery = $class::find();
-        }
-        $image = $imageQuery
-            ->where([
-                'modelName' => $modelName,
-                'itemId' => $itemId,
-                'urlAlias' => $alias
-            ])
-            /*     ->where('modelName = :modelName AND itemId = :itemId AND urlAlias = :alias',
-                     [
-                         ':modelName' => $modelName,
-                         ':itemId' => $itemId,
-                         ':alias' => $alias
-                     ])*/
-            ->one();
-        if(!$image){
-            return $this->getPlaceHolder();
-        }
+		return $image;
+	}
 
-        return $image;
-    }
+	/**
+	 * @return false|string
+	 */
+	public function getStorePath()
+	{
+		return Yii::getAlias($this->imagesStorePath);
+	}
 
-    public function getStorePath()
-    {
-        return Yii::getAlias($this->imagesStorePath);
-    }
+	/**
+	 * @return false|string
+	 */
+	public function getCachePath()
+	{
+		return Yii::getAlias($this->imagesCachePath);
 
+	}
 
-    public function getCachePath()
-    {
-        return Yii::getAlias($this->imagesCachePath);
+	/**
+	 * @param $model
+	 * @return string
+	 */
+	public function getModelSubDir($model): string
+	{
+		$modelName = $this->getShortClass($model);
+		return Inflector::pluralize($modelName).'/'. $modelName . $model->getPrimaryKey();
+	}
 
-    }
+	/**
+	 * @param $obj
+	 * @return mixed|string
+	 */
+	public function getShortClass($obj)
+	{
+		$className = get_class($obj);
+		if (preg_match('@\\\\([\w]+)$@', $className, $matches)) {
+			$className = $matches[1];
+		}
 
-    public function getModelSubDir($model)
-    {
+		return $className;
+	}
 
-        $modelName = $this->getShortClass($model);
-        $modelDir = \yii\helpers\Inflector::pluralize($modelName).'/'. $modelName . $model->getPrimaryKey();
-        return $modelDir;
+	/**
+	 *
+	 * Parses size string
+	 * For instance: 400x400, 400x, x400
+	 *
+	 * @param $notParsedSize
+	 * @return array|null
+	 * @throws Exception
+	 */
+	public function parseSize($notParsedSize)
+	{
+		$sizeParts = explode('x', $notParsedSize);
+		$part1 = (isset($sizeParts[0]) and $sizeParts[0] != '');
+		$part2 = (isset($sizeParts[1]) and $sizeParts[1] != '');
 
+		if ($part1 && $part2) {
+			if (intval($sizeParts[0]) > 0
+				&&
+				intval($sizeParts[1]) > 0
+			) {
+				$size = [
+					'width' => intval($sizeParts[0]),
+					'height' => intval($sizeParts[1])
+				];
+			} else {
+				$size = null;
+			}
+		} elseif ($part1 && !$part2) {
+			$size = [
+				'width' => intval($sizeParts[0]),
+				'height' => null
+			];
+		} elseif (!$part1 && $part2) {
+			$size = [
+				'width' => null,
+				'height' => intval($sizeParts[1])
+			];
+		} else {
+			throw new Exception('Something bad with size, sorry!');
+		}
 
-    }
+		return $size;
+	}
 
+	/**
+	 * @param $parameterized
+	 * @return array
+	 * @throws Exception
+	 */
+	public function parseImageAlias($parameterized): array
+	{
+		$params = explode('_', $parameterized);
 
-    public function getShortClass($obj)
-    {
-        $className = get_class($obj);
+		if (count($params) == 1) {
+			$alias = $params[0];
+			$size = null;
+		} elseif (count($params) == 2) {
+			$alias = $params[0];
+			$size = $this->parseSize($params[1]);
+			if (!$size) {
+				$alias = null;
+			}
+		} else {
+			$alias = null;
+			$size = null;
+		}
 
-        if (preg_match('@\\\\([\w]+)$@', $className, $matches)) {
-            $className = $matches[1];
-        }
+		return ['alias' => $alias, 'size' => $size];
+	}
 
-        return $className;
-    }
-
-
-    /**
-     *
-     * Parses size string
-     * For instance: 400x400, 400x, x400
-     *
-     * @param $notParsedSize
-     * @return array|null
-     */
-    public function parseSize($notParsedSize)
-    {
-        $sizeParts = explode('x', $notParsedSize);
-        $part1 = (isset($sizeParts[0]) and $sizeParts[0] != '');
-        $part2 = (isset($sizeParts[1]) and $sizeParts[1] != '');
-        if ($part1 && $part2) {
-            if (intval($sizeParts[0]) > 0
-                &&
-                intval($sizeParts[1]) > 0
-            ) {
-                $size = [
-                    'width' => intval($sizeParts[0]),
-                    'height' => intval($sizeParts[1])
-                ];
-            } else {
-                $size = null;
-            }
-        } elseif ($part1 && !$part2) {
-            $size = [
-                'width' => intval($sizeParts[0]),
-                'height' => null
-            ];
-        } elseif (!$part1 && $part2) {
-            $size = [
-                'width' => null,
-                'height' => intval($sizeParts[1])
-            ];
-        } else {
-            throw new \Exception('Something bad with size, sorry!');
-        }
-
-        return $size;
-    }
-
-    public function parseImageAlias($parameterized)
-    {
-        $params = explode('_', $parameterized);
-
-        if (count($params) == 1) {
-            $alias = $params[0];
-            $size = null;
-        } elseif (count($params) == 2) {
-            $alias = $params[0];
-            $size = $this->parseSize($params[1]);
-            if (!$size) {
-                $alias = null;
-            }
-        } else {
-            $alias = null;
-            $size = null;
-        }
-
-
-        return ['alias' => $alias, 'size' => $size];
-    }
-
-
-    public function init()
-    {
-        parent::init();
-        if (!$this->imagesStorePath
-            or
-            !$this->imagesCachePath
-            or
-            $this->imagesStorePath == '@app'
-            or
-            $this->imagesCachePath == '@app'
-        )
-            throw new \Exception('Setup imagesStorePath and imagesCachePath images module properties!!!');
-        // custom initialization code goes here
-    }
-
-    public function getPlaceHolder(){
-
-        if($this->placeHolderPath){
-            return new PlaceHolder();
-        }else{
-            return null;
-        }
-    }
+	/**
+	 * @return PlaceHolder|null
+	 */
+	public function getPlaceHolder(): ?PlaceHolder
+	{
+		return $this->placeHolderPath ? new PlaceHolder(): null;
+	}
 }
