@@ -106,7 +106,8 @@ class Image extends ActiveRecord
 	 * @return array|string|string[]
 	 * @throws Exception
 	 */
-	public function getExtension(){
+	public function getExtension()
+	{
 		return pathinfo($this->getPathToOrigin(), PATHINFO_EXTENSION);
 	}
 
