@@ -6,6 +6,7 @@ use Exception;
 use yii;
 use rico\yii2images\models\Image;
 use rico\yii2images\models\PlaceHolder;
+use yii\base\InvalidConfigException;
 use yii\helpers\Inflector;
 
 /**
@@ -18,32 +19,26 @@ class Module extends \yii\base\Module
 	 * @var string
 	 */
 	public $imagesStorePath = '@app/web/store';
-
 	/**
 	 * @var string
 	 */
-	public $imagesCachePath = '@app/web/imgCache';
-
+	public $imagesCachePath = '@app/web/cached';
 	/**
 	 * @var string
 	 */
 	public $graphicsLibrary = 'GD';
-
 	/**
 	 * @var string
 	 */
 	public $controllerNamespace = 'rico\yii2images\controllers';
-
 	/**
 	 * @var
 	 */
 	public $placeHolderPath;
-
 	/**
 	 * @var bool
 	 */
 	public $waterMark = false;
-
 	/**
 	 * @var
 	 */
@@ -80,7 +75,7 @@ class Module extends \yii\base\Module
 	 */
 	public function getImage($item, $dirtyAlias)
 	{
-		$params = $data = $this->parseImageAlias($dirtyAlias);
+		$params = $this->parseImageAlias($dirtyAlias);
 		$alias = $params['alias'];
 
 		$itemId = preg_replace('/[^0-9]+/', '', $item);
@@ -121,7 +116,6 @@ class Module extends \yii\base\Module
 	public function getCachePath()
 	{
 		return Yii::getAlias($this->imagesCachePath);
-
 	}
 
 	/**
@@ -157,7 +151,7 @@ class Module extends \yii\base\Module
 	 * @return array|null
 	 * @throws Exception
 	 */
-	public function parseSize($notParsedSize)
+	public function parseSize($notParsedSize): ?array
 	{
 		$sizeParts = explode('x', $notParsedSize);
 		$part1 = (isset($sizeParts[0]) and $sizeParts[0] != '');
@@ -219,10 +213,14 @@ class Module extends \yii\base\Module
 	}
 
 	/**
+	 * @throws InvalidConfigException
 	 * @return PlaceHolder|null
 	 */
 	public function getPlaceHolder(): ?PlaceHolder
 	{
+		if (!file_exists(Yii::getAlias($this->placeHolderPath)))
+			throw new InvalidConfigException("PlaceHolder image file not found in {$this->placeHolderPath}");
+
 		return $this->placeHolderPath ? new PlaceHolder(): null;
 	}
 }
