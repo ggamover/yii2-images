@@ -274,7 +274,7 @@ class Image extends ActiveRecord
 	 */
 	public function setMain(bool $isMain = true)
 	{
-		$this->isMain = $isMain;
+		$this->isMain = (int) $isMain;
 	}
 
 	/**
