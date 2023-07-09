@@ -29,7 +29,7 @@ class ImagesController extends Controller
 	 * @throws yii\base\Exception
 	 * @throws HttpException
 	 */
-	public function actionImageByItemAndAlias(string $item='', $dirtyAlias)
+	public function actionImageByItemAndAlias($dirtyAlias, string $item='')
 	{
 		$dotParts = explode('.', $dirtyAlias);
 		if(!isset($dotParts[1])){
