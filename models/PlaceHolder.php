@@ -68,7 +68,7 @@ class PlaceHolder extends Image
 	 * @return void
 	 * @throws yii\base\Exception
 	 */
-	public function setMain($isMain = true)
+	public function setMain(bool $isMain = true)
 	{
 		throw new yii\base\Exception('You must not set placeHolder as main image!');
 	}
